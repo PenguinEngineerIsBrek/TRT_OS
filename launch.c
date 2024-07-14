@@ -1,7 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
-#include "bootloader/loader.h"
+#include "bootloader/TRSB/loader.h"
 #include "kernel/kernel.h"
 
 int main(){
