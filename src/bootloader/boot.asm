@@ -18,11 +18,11 @@ _start:
     mov ax, 0x0003
     int 0x10
 
-    ;Boot second stage bootloader from drive
+    ;Boot kernel from drive
     mov ax, 0x7e00
     mov es, ax
     mov ah, 0x02
-    mov al, 4
+    mov al, 10
     mov ch, 0
     mov cl, 2
     mov dh, 0
