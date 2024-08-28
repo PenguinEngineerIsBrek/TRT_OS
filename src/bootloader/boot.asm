@@ -1,7 +1,7 @@
 BITS 16
 ORG 0x7C00
 
-
+extern main
 
 _start:
 
@@ -22,7 +22,7 @@ _start:
     mov ax, 0x7e00
     mov es, ax
     mov ah, 0x02
-    mov al, 10
+    mov al, 1
     mov ch, 0
     mov cl, 2
     mov dh, 0
@@ -86,7 +86,7 @@ start_pm:
     mov ds, ax
     mov es, ax
 
-    jmp 0x7e00:0x0000  ; Jump to the loaded stage 2 compiler
-
+    call main 
     times 510 - ($-$$) db 0
+    
     dw 0xAA55
