@@ -33,17 +33,26 @@ typedef union PGE_t {
     } __attribute__((packed));
 } PGE_t;
 
-union PDE_t pagedir[1024] __attribute__((aligned(4096)));
-union PGE_t pagetable[1024] __attribute__((aligned(4096)));
+typedef PDE_t pagedir_t[1024] __attribute__((aligned(4096)));
+typedef PGE_t pagetable_t[1024] __attribute__((aligned(4096)));
 
+#define PAGE_ALIGN(addr) ((addr + 4096 - 1) & ~(4096 - 1))
 
-void init_pagedir(){
+pagedir_t pagedir;
+pagetable_t pagetable;
+uint32_t next_free = 0x0000;
+uint32_t offset = 0x0000;
+void init_paging(){
     for(int i = 0; i < 1024; i++){
         pagetable[i].value = 0;
         pagetable[i].P = 1;
         pagetable[i].RW = 1;
-        uint32_t address = (i*0x1000) >> 12;
+        next_free = i*0x1000+offset;
+        uint32_t address = (next_free) >> 12;
         pagetable[i].ADDR = address;
+        if(i > 1023){
+            offset = next_free;
+        }
     }
 
     pagedir[0].value = 0;
@@ -65,4 +74,27 @@ void init_pagedir(){
             : "eax"
      );
 }
+
+void map_pagedirentry(pagedir_t* dir, uint32_t index, pagetable_t* table) {
+    (*dir)[index].value = 0;
+    (*dir)[index].P = 1;
+    (*dir)[index].RW = 1;
+    (*dir)[index].US = 0;
+    (*dir)[index].ADDR = ((uint32_t)table) >> 12;
+}
+void map_pagetableentry(pagetable_t* table, uint32_t index) {
+    (*table)[index].value = 0;
+    (*table)[index].P = 1;
+    (*table)[index].RW = 1;
+    (*table)[index].US = 0;
+    (*table)[index].ADDR = ((uint32_t)table) >> 12;
+}
+
+void* alloc(){
+    void* page = (void *)PAGE_ALIGN(next_free);
+    next_free = (uint32_t)page + 4096;
+    offset = 0x0000;
+    return page;
+}
+
 #endif
