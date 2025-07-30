@@ -39,31 +39,10 @@ typedef PGE_t pagetable_t[1024] __attribute__((aligned(4096)));
 #define PAGE_ALIGN(addr) ((addr + 4096 - 1) & ~(4096 - 1))
 
 pagedir_t pagedir;
-pagetable_t pagetable;
+pagetable_t* pagetable;
 uint32_t next_free = 0x0000;
 uint32_t offset = 0x0000;
 void init_paging(){
-    for(int i = 0; i < 1024; i++){
-        pagetable[i].value = 0;
-        pagetable[i].P = 1;
-        pagetable[i].RW = 1;
-        next_free = i*0x1000+offset;
-        uint32_t address = (next_free) >> 12;
-        pagetable[i].ADDR = address;
-        if(i > 1023){
-            offset = next_free;
-        }
-    }
-
-    pagedir[0].value = 0;
-    pagedir[0].P = 1;
-    pagedir[0].RW = 1;
-    pagedir[0].ADDR = ((uint32_t)&pagetable) >> 12;
-
-    for(int i = 1; i < 1024; i++){
-        pagedir[i].value = 0;
-    }
-
     asm volatile(
             "mov %0, %%cr3\n"
             "mov %%cr0, %%eax\n"
@@ -87,14 +66,21 @@ void map_pagetableentry(pagetable_t* table, uint32_t index) {
     (*table)[index].P = 1;
     (*table)[index].RW = 1;
     (*table)[index].US = 0;
-    (*table)[index].ADDR = ((uint32_t)table) >> 12;
+    (*table)[index].ADDR = (next_free) >> 12;
+    next_free += 0x1000;
 }
 
 void* alloc(){
     void* page = (void *)PAGE_ALIGN(next_free);
-    next_free = (uint32_t)page + 4096;
-    offset = 0x0000;
     return page;
+}
+
+void* allocpagetable(){
+    pagetable = (pagetable_t*)alloc();
+    for(int i = 0; i < 1024; i++){
+        map_pagetableentry(pagetable, i);
+    }
+    return pagetable;
 }
 
 #endif
