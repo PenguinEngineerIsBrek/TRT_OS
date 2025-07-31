@@ -1,37 +1,44 @@
 #ifndef PAGEDIR_H
 #define PAGEDIR_H
-typedef union PDE_t {
-    uint32_t value;
-    struct{
-        uint32_t P : 1;
-        uint32_t RW : 1;
-        uint32_t US : 1;
-        uint32_t PWT : 1;
-        uint32_t PCD : 1;
-        uint32_t A : 1;
-        uint32_t AVL1 : 1;
-        uint32_t PS : 1;
-        uint32_t AVL2 : 4;
-        uint32_t ADDR : 20;
-   } __attribute__((packed));
-} PDE_t;
 
-typedef union PGE_t {
-    uint32_t value;
-    struct{
-        uint32_t P : 1;
-        uint32_t RW : 1;
-        uint32_t US : 1;
-        uint32_t PWT : 1;
-        uint32_t PCD : 1;
-        uint32_t A : 1;
-        uint32_t D : 1;
-        uint32_t PAT : 1;
-        uint32_t G : 1;
-        uint32_t AVL : 3;
-        uint32_t ADDR : 20;
-    } __attribute__((packed));
-} PGE_t;
+#define PDE_P_MASK     0x00000001
+#define PDE_RW_MASK    0x00000002
+#define PDE_US_MASK    0x00000004
+#define PDE_PWT_MASK   0x00000008
+#define PDE_PCD_MASK   0x00000010
+#define PDE_A_MASK     0x00000020
+#define PDE_AVL1_MASK  0x00000040
+#define PDE_PS_MASK    0x00000080
+#define PDE_AVL2_MASK  0x00000F00
+#define PDE_ADDR_MASK  0xFFFFF000
+
+typedef uint32_t PDE_t;
+
+#define PGE_P_MASK     0x00000001
+#define PGE_RW_MASK    0x00000002
+#define PGE_US_MASK    0x00000004
+#define PGE_PWT_MASK   0x00000008
+#define PGE_PCD_MASK   0x00000010
+#define PGE_A_MASK     0x00000020
+#define PGE_D_MASK     0x00000040
+#define PGE_PAT_MASK   0x00000080
+#define PGE_G_MASK     0x00000100
+#define PGE_AVL_MASK   0x00000E00
+#define PGE_ADDR_MASK  0xFFFFF000
+
+typedef uint32_t PGE_t;
+
+#define GET_PDE_ADDR(pde)    ((pde) & PDE_ADDR_MASK)
+#define SET_PDE_ADDR(pde, addr) \
+    ((pde) = ((pde) & ~PDE_ADDR_MASK) | ((addr) & PDE_ADDR_MASK))
+
+#define GET_PGE_ADDR(pge)    ((pge) & PGE_ADDR_MASK)
+#define SET_PGE_ADDR(pge, addr) \
+    ((pge) = ((pge) & ~PGE_ADDR_MASK) | ((addr) & PGE_ADDR_MASK))
+
+#define SET_FLAG(val, mask)   ((val) |= (mask))
+#define CLEAR_FLAG(val, mask) ((val) &= ~(mask))
+#define TEST_FLAG(val, mask)  (((val) & (mask)) != 0)
 
 typedef PDE_t pagedir_t[1024] __attribute__((aligned(4096)));
 typedef PGE_t pagetable_t[1024] __attribute__((aligned(4096)));
@@ -55,23 +62,28 @@ void init_paging(){
 }
 
 void map_pagedirentry(pagedir_t* dir, uint32_t index, pagetable_t* table) {
-    (*dir)[index].value = 0;
-    (*dir)[index].P = 1;
-    (*dir)[index].RW = 1;
-    (*dir)[index].US = 0;
-    (*dir)[index].ADDR = ((uint32_t)table) >> 12;
-}
-void map_pagetableentry(pagetable_t* table, uint32_t index) {
-    (*table)[index].value = 0;
-    (*table)[index].P = 1;
-    (*table)[index].RW = 1;
-    (*table)[index].US = 0;
-    (*table)[index].ADDR = (next_free) >> 12;
-    next_free += 0x1000;
+    PDE_t entry = 0;
+
+    SET_FLAG(entry, PDE_P_MASK);
+    SET_FLAG(entry, PDE_RW_MASK);
+    SET_PDE_ADDR(entry, (uint32_t)table);
+
+    (*dir)[index] = entry;
 }
 
+void map_pagetableentry(pagetable_t* table, uint32_t index) {
+    PGE_t entry = 0;
+
+    SET_FLAG(entry, PGE_P_MASK);
+    SET_FLAG(entry, PGE_RW_MASK);
+    SET_PGE_ADDR(entry, next_free);
+
+    next_free += 0x1000;
+    (*table)[index] = entry;
+}
 void* alloc(){
     void* page = (void *)PAGE_ALIGN(next_free);
+    memset(page, 0, 4096);
     return page;
 }
 
